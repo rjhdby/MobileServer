@@ -1,0 +1,42 @@
+div.left {
+    float:left;
+}
+div.clear {
+    clear: both;
+}
+div.button {
+    border: solid 1px;
+    margin: 2px;
+    padding: 2px;
+    background: white;
+    cursor: pointer;
+}
+div.button_exit {
+    background: lightcoral;
+    border: solid 1px;
+    margin: 2px;
+    padding: 2px;
+    cursor: pointer;
+}
+div.button_exit:hover {
+    background: red;
+}
+div.button:hover {
+    background: yellow;
+}
+div.button_selected {
+    background: green;
+    border: solid 1px;
+    margin: 2px;
+    padding: 2px;
+    cursor: pointer;
+}
+div.button_selected:hover {
+    background: darkolivegreen;
+}
+div#data_container {
+    width: 300px;
+}
+textarea {
+    width: 290px;
+}
