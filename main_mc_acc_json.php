@@ -74,6 +74,13 @@ switch ($_POST ['calledMethod']) {
             "result" => $onway->leave ()
         );
         break;
+    case 'cancelOnWay' :
+        require_once 'class/onway.class.php';
+        $onway = new onway ( $_POST );
+        $result = array (
+            "result" => $onway->cancel ()
+        );
+        break;
     case 'getOnway' :
         require_once 'class/onway.class.php';
         $onway = new onway ( $_POST );

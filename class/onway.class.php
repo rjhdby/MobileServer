@@ -49,6 +49,9 @@ class onway {
     public function leave() {
         return $this->changeStatus("leave");
     }
+    public function cancel() {
+        return $this->changeStatus("cancel");
+    }
     private function changeStatus($status){
         $check = $this->checkAll ();
         if ($check != "OK")
