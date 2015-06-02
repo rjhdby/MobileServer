@@ -139,6 +139,7 @@ class getlist {
 		return $out;
 	}
 	public function get_history($id) {
+        /*
 		$query = 'SELECT
 				a.id,
 				a.id_user,
@@ -149,6 +150,18 @@ class getlist {
 				FROM history a, users b
 				WHERE a.id_user=b.id
 					AND a.id_ent = ' . $id . '
+				;';
+        */
+        $query = 'SELECT
+				MAX(a.id) AS id,
+				a.id_user,
+				b.login AS owner,
+				MAX(UNIX_TIMESTAMP(a.timest)) AS uxtime,
+				a.action
+				FROM history a, users b
+				WHERE a.id_user=b.id
+					AND a.id_ent = ' . $id . '
+                GROUP BY a.id_user, owner, a.action
 				;';
 		$rs = $this->db->query ( $query );
 		$out = array ();

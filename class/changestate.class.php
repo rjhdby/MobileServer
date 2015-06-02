@@ -1,6 +1,7 @@
 <?php
 require_once 'auth.class.php';
 require_once 'db.class.php';
+require_once 'role.class.php';
 class changeState {
 	private $params;
 	private $user;
@@ -22,6 +23,7 @@ class changeState {
 		return true;
 	}
 	public function change_state() {
+        $role = new Role($this->params ['login']);
 		$state = $this->params ['state'];
 		if (! $this->check_prereq ()) {
 			return "ERROR";
@@ -30,14 +32,14 @@ class changeState {
 		if (! $auth->check ( $this->params ['login'], $this->params ['passhash'] ))
 			return "ERROR";
 		$this->user = $auth->get_data ( $this->params ['login'], true );
-		if (! $this->isStandart ())
+		if (! $role->isStandart ())
 			return "READONLY";
-		if (! $this->isModerator () && in_array ( $state, array (
+		if (! $role->isModerator () && in_array ( $state, array (
 				'acc_status_hide',
 				'acc_status_act' 
 		) ))
 			return "NO RIGHTS";
-		if (! $this->isAdmin () && $state == 'acc_status_war')
+		if (! $role->isAdmin () && $state == 'acc_status_war')
 			return "NO RIGHTS";
 		$db = new db ( 'apk' );
 		$db->autocommit ( false );
@@ -70,35 +72,5 @@ class changeState {
 		$db->commit ();
 		$db->close ();
 		return "OK";
-	}
-	private function isRO() {
-		$roles = array (
-				'readonly',
-				'standart',
-				'moderator',
-				'admin' 
-		);
-		return in_array ( $this->user ['role'], $roles );
-	}
-	private function isStandart() {
-		$roles = array (
-				'standart',
-				'moderator',
-				'admin' 
-		);
-		return in_array ( $this->user ['role'], $roles );
-	}
-	private function isModerator() {
-		$roles = array (
-				'moderator',
-				'admin' 
-		);
-		return in_array ( $this->user ['role'], $roles );
-	}
-	private function isAdmin() {
-		$roles = array (
-				'admin' 
-		);
-		return in_array ( $this->user ['role'], $roles );
 	}
 }

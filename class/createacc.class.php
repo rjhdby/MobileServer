@@ -2,16 +2,18 @@
 require_once 'auth.class.php';
 require_once 'db.class.php';
 require_once 'config.class.php';
+require_once 'role.class.php';
 
 class createacc
 {
     private $params;
     private $user;
+    private $is_test;
 
     function __construct($params)
     {
         $this->params = $params;
-        if($this->params['owner_id'] == 8){
+        if ($this->params['owner_id'] == 8) {
             $this->params['test'] = 1;
             $this->params['owner_id'] = 1;
         }
@@ -32,10 +34,11 @@ class createacc
             "passhash"
         );
         foreach ($prereq as $key) {
-            if (!isset ($this->params [$key])) {
+            if (!isset ($this->params [ $key ])) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -46,11 +49,14 @@ class createacc
         if ((time() - $timestamp) < $timeout) {
             return false;
         }
+
         return true;
     }
 
     public function create_acc()
     {
+        $this->is_test = false;
+        $role = new Role($this->params ['login']);
         $operator_id = config::get('operator.id.app');
         $delta_id = config::get('operator.id.delta');
         if (!$this->check_prereq()) {
@@ -67,14 +73,22 @@ class createacc
             }
         } else {
             $this->params ['owner_id'] = $operator_id;
+            if ($this->params ['type'] == 'acc_o') {
+                return "PROBABLY SPAM";
+            }
         }
         if ($this->user ['role'] == 'standart' && $this->params ['owner_id'] != $operator_id) {
             if (!$this->check_last_created()) {
                 return "PROBABLY SPAM";
             }
         }
-        if (!$this->check_last_created(60) && $this->user ['role'] == 'moderator' && $this->params ['owner_id'] != $operator_id) {
-                return "PROBABLY SPAM";
+        if (!$this->check_last_created(60)
+            && $role->isModerator()
+            && $this->params ['owner_id'] != $operator_id) {
+            return "PROBABLY SPAM";
+        }
+        if($role->isDeveloper()){
+            $this->is_test = true;
         }
         $db = new db ('apk');
         $db->autocommit(false);
@@ -86,10 +100,10 @@ class createacc
         $description = $db->real_escape_string($this->params ['descr']);
         $attr = $db->real_escape_string(json_encode(array(
             "type" => $this->params ['type'],
-            "med" => $this->params ['med']
+            "med"  => $this->params ['med']
         )));
         //if (!isset($this->params['test'])) {
-            $query = '
+        $query = '
 				INSERT INTO entities 
 				(
 					created,
@@ -102,7 +116,8 @@ class createacc
 					address,
 					description,
 					status,
-					attr
+					attr,
+					is_test
 				) VALUES (
 					NOW(),
 					NOW(),
@@ -114,22 +129,22 @@ class createacc
 					"' . $address . '",
 					"' . $description . '",
 					"acc_status_act",
-					"' . $attr . '"
+					"' . $attr . '",
+					'.$this->is_test.'
 				);';
 
+        $db->query($query);
 
-            $db->query($query);
-
-            if ($db->error) {
-                return $db->error;
-            }
-            $id = $db->insert_id;
-            $hparams = $db->real_escape_string(json_encode(array(
-                "lon" => $this->params ['type'],
-                "lat" => $this->params ['med'],
-                "address" => $this->params ['address']
-            )));
-            $query = 'INSERT INTO history
+        if ($db->error) {
+            return $db->error;
+        }
+        $id = $db->insert_id;
+        $hparams = $db->real_escape_string(json_encode(array(
+            "lon"     => $this->params ['type'],
+            "lat"     => $this->params ['med'],
+            "address" => $this->params ['address']
+        )));
+        $query = 'INSERT INTO history
 				(
 					id_ent,
 					id_user,
@@ -141,12 +156,12 @@ class createacc
 					"create_mc_acc",
 					"' . $hparams . '"
 				);';
-            $db->query($query);
-            if ($db->error) {
-                return $db->error;
-            }
-            $db->commit();
-       // }
+        $db->query($query);
+        if ($db->error) {
+            return $db->error;
+        }
+        $db->commit();
+        // }
         $result = 0;
         $gcm_result = 'GCM ERROR';
         require_once 'utils.class.php';
@@ -157,29 +172,28 @@ class createacc
         if ($med != '') {
             $title .= ', ' . $med;
         }
-        if (!isset($this->params['test'])) {
+        if (!$this->is_test) {
             $gcm_array = array(
-                'login' => $this->params ['login'],
-                'passhash' => $this->params ['passhash'],
-                'message' => $address . ", " . $description,
-                'title' => $title,
-                'type' => $this->params ['type'],
-                'id' => $id,
-                'lat' => $lat,
-                'lon' => $lon,
-                'mc_accident_orig_med' => $this->params ['med'],
+                'login'                 => $this->params ['login'],
+                'passhash'              => $this->params ['passhash'],
+                'message'               => $address . ", " . $description,
+                'title'                 => $title,
+                'type'                  => $this->params ['type'],
+                'id'                    => $id,
+                'lat'                   => $lat,
+                'lon'                   => $lon,
+                'mc_accident_orig_med'  => $this->params ['med'],
                 'mc_accident_orig_type' => $this->params ['type'],
-                'status' => 'acc_status_act',
-                'address' => $address,
-                'owner_id' => $owner,
-                'owner' => $this->params ['login'],
-                'descr' => $description
+                'status'                => 'acc_status_act',
+                'address'               => $address,
+                'owner_id'              => $owner,
+                'owner'                 => $this->params ['login'],
+                'descr'                 => $description
             );
             $gcm = new gcm ($gcm_array);
             $gcm_result = $gcm->sendBroadcast();
-
         }
-        //if ($this->params ['type'] != 'acc_o' && $this->params['login'] == 'Р”РµР»СЊС‚Р°') {
+
         if ($this->params ['type'] != 'acc_o') {
             require_once 'createtopic.class.php';
 
@@ -198,23 +212,9 @@ class createacc
             }
             require_once 'twitter.class.php';
             new twitter($title . ', ' . $address . ", " . $description, $lon, $lat);
-            /*
-                        require_once 'sms.class.php';
-                        $utils = new utils ();
-                        $med = $utils->getStatic ( $this->params ['med'] );
-                        $type = $utils->getStatic ( $this->params ['type'] );
-                        $sms = new sms ();
-                        $text = $type;
-                        if ($med != '') {
-                            $text .= "," . $med;
-                        }
-                        $text .= "," . $address . "," . $utils->shortURL ( $utils->makeYMAPSURL ( $lon, $lat ) ) . " " . $description;
-                        $sms->translit = true;
-                        $sms->one_sms = true;
-                        $sms->sendLimited($text);
-            */
         }
         $db->close();
+
         return array('ID' => $result);
     }
 }
