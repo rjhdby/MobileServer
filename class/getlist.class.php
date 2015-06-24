@@ -34,7 +34,7 @@ class getlist {
 					AND b.application="mc_accident"
 					AND b.attribute=a.status
 					AND a.owner=c.id
-					AND a.status != "acc_status_hidden"
+					AND a.status != "acc_status_dbl"
 					AND NOW() < (DATE_ADD(a.starttime, INTERVAL a.duration HOUR))
 				' . $this->make_where () . '
 				;';
